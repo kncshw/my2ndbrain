@@ -13,6 +13,9 @@ Reference material for personal portfolio analysis, market monitoring, and hedgi
 ### Reference material
 - **[historical-bear-analog-2021-2022.md](./historical-bear-analog-2021-2022.md)** — The 2021 peak / 2022 bear analog. Peak/trough magnitudes, SMH timeline with Fed overlay, RSI at peak comparison, bearish divergence pattern, sizing reference for hedge decisions.
 
+### Deep-dive workflows
+- **[6-analyst-stock-panel-prompt.md](./6-analyst-stock-panel-prompt.md)** — Reusable 6-analyst multi-agent research framework for deep-dive equity diagnoses. Covers: product→AI map, peer competition, China moat, valuation, manufacturing/supply chain, and physical-AI TAM expansion. Includes pre-flight checklist, copy-paste agent prompts with placeholders, orchestrator synthesis template, past-panels archive. Evolved through ADI / CGNX / ROK panels (2026-05-24).
+
 ## How they relate
 
 ```
