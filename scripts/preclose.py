@@ -39,6 +39,20 @@ def main():
     print('AMC_TODAY: ' + (', '.join(sorted(set(amc_today))) if amc_today else 'none'))
     print('AMC_THIS_WEEK: ' + (', '.join(dict.fromkeys(amc_week)) if amc_week else 'none'))
 
+    # --- DATA SANITY CHECK (flag stale/null indicator feed) ---
+    warns = []
+    try:
+        idx = yf.Ticker('^VIX').history(period='5d').index
+        age = (today - idx[-1].date()).days
+        if age > 4:
+            warns.append('stale feed? last VIX bar %s (%dd old)' % (idx[-1].date(), age))
+    except Exception:
+        warns.append('could not verify data freshness')
+    for nm, v in [('VIX', vix), ('10Y', tnx), ('WTI', wti)]:
+        if v is None or v != v or v <= 0:
+            warns.append('%s invalid (%s)' % (nm, v))
+    print('DATA_CHECK: ' + ('WARN - ' + '; '.join(warns) if warns else 'OK'))
+
 
 if __name__ == '__main__':
     main()

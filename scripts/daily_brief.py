@@ -55,6 +55,19 @@ def px(t):
     return float(yf.Ticker(t).history(period='5d')['Close'].iloc[-1])
 
 
+def finviz_rsi(t):
+    """Daily RSI(14) scraped from finviz, for cross-checking our computation. None on failure."""
+    import urllib.request, re
+    try:
+        req = urllib.request.Request('https://finviz.com/quote.ashx?t=' + t,
+                                     headers={'User-Agent': 'Mozilla/5.0'})
+        html = urllib.request.urlopen(req, timeout=12).read().decode('utf-8', 'ignore')
+        m = re.search(r'RSI \(14\).*?<b>\s*([\d.]+)\s*</b>', html, re.S)
+        return float(m.group(1)) if m else None
+    except Exception:
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--otm', type=float, default=0.05, help='put % out-of-the-money (0.05 = 5%)')
@@ -68,11 +81,14 @@ def main():
     r = tnx / 100
     print(f'INDICATORS VIX {vix:.1f} | 10Y {tnx:.2f}% | WTI ${wti:.2f}')
 
+    rsi_daily = {}
     print('RSI Wilder-14 (daily | weekly):')
     for t in RSI_TICKERS:
         dc = yf.Ticker(t).history(period='1y')['Close']
         wc = yf.Ticker(t).history(period='3y', interval='1wk')['Close'].dropna()
-        print(f'  {t}: {wrsi(dc.values):.1f} | {wrsi(wc.values):.1f}')
+        d, w = wrsi(dc.values), wrsi(wc.values)
+        rsi_daily[t] = d
+        print(f'  {t}: {d:.1f} | {w:.1f}')
 
     for t in SPOT_TICKERS:
         print(f'SPOT {t} ${px(t):.2f}')
@@ -132,6 +148,28 @@ def main():
     for dp in (0.01, 0.02, 0.03):
         qval = bsput(qspot * (1 - dp), qK, qT, r, qiv)
         print(f'   QQQ -{dp*100:.0f}%: put ~${qval:.2f} gain ~${(qval-qmid)*100:,.0f}/ct')
+
+    # --- DATA SANITY CHECKS (so a bad/stale/null feed does not pass silently) ---
+    warns, skipped = [], []
+    try:
+        idx = yf.Ticker('QQQ').history(period='5d').index
+        age = (dt.date.today() - idx[-1].date()).days
+        if age > 4:
+            warns.append('stale feed? last QQQ bar %s (%dd old)' % (idx[-1].date(), age))
+    except Exception:
+        warns.append('could not verify data freshness')
+    for nm, v in [('VIX', vix), ('10Y', tnx), ('WTI', wti)]:
+        if v is None or v != v or v <= 0:   # None / NaN / non-positive
+            warns.append('%s invalid (%s)' % (nm, v))
+    for t in RSI_TICKERS:
+        fv = finviz_rsi(t)
+        if fv is None:
+            skipped.append(t)
+        elif abs(fv - rsi_daily[t]) > 4:
+            warns.append('%s RSI mismatch: computed %.1f vs finviz %.1f' % (t, rsi_daily[t], fv))
+    status = 'WARN - ' + '; '.join(warns) if warns else 'OK'
+    extra = (' (finviz cross-check skipped: ' + ','.join(skipped) + ')') if skipped else ' (RSI matches finviz)'
+    print('DATA_CHECK: ' + status + extra)
 
 
 if __name__ == '__main__':
