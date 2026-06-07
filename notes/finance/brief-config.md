@@ -27,6 +27,7 @@
 - Sizing: ~enough contracts to cover each bucket's notional
 - **Hedge trigger:** if VIX > 18 → prominently recommend PLACING the near-term hedge today (or ROLLING the existing one)
 - Payoff drops to show: -5%, -10%, -15%
+- **TACTICAL overlay (optional, same-day only):** a 0-1DTE QQQ put (~1% OTM) — least time premium, highest gamma. Pays explosively if the drop is TODAY, worth ~$0 by tomorrow. NOT standing insurance and NOT the core hedge — a deliberate add ON TOP of the SMH/GOOGL hedge, used only on mornings with real conviction the move is today (CPI/Fed/acute continuation). Re-buy each morning only if conviction holds; do not treat the daily expiry as an excuse to drop core protection. Script args: `--tac_otm 0.01 --tac_dte 1`. Payoff drops: -1%, -2%, -3%.
 
 ## SCENARIOS  *(loss table — adjust % as your risk view changes)*
 - S1 Pullback: GOOGL -10% / SEMI -15% / OTHERS -10%
