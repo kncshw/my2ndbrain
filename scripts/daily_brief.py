@@ -60,6 +60,8 @@ def main():
     ap.add_argument('--otm', type=float, default=0.05, help='put % out-of-the-money (0.05 = 5%)')
     ap.add_argument('--dte', type=int, default=14, help='target days to expiry')
     ap.add_argument('--port', type=float, default=400000, help='total portfolio $')
+    ap.add_argument('--tac_otm', type=float, default=0.01, help='tactical QQQ put %% OTM (same-day overlay)')
+    ap.add_argument('--tac_dte', type=int, default=1, help='tactical QQQ put days to expiry (0-2)')
     a = ap.parse_args()
 
     vix, tnx, wti = px('^VIX'), px('^TNX'), px('CL=F')
@@ -107,6 +109,29 @@ def main():
 
     for t in HEDGE_TICKERS:
         hedge(t)
+
+    # Tactical short-dated QQQ overlay: least time premium, highest gamma+theta.
+    # SAME-DAY ONLY — decays to ~0 in a day; a deliberate add on top of the core hedge,
+    # NOT standing insurance. Re-buy only when conviction the move is today.
+    today = dt.date.today()
+    qtk = yf.Ticker('QQQ')
+    qspot = px('QQQ')
+    qtgt = qspot * (1 - a.tac_otm)
+    qexp = min(qtk.options, key=lambda e: abs((dt.date.fromisoformat(e) - today).days - a.tac_dte))
+    qdte = (dt.date.fromisoformat(qexp) - today).days
+    qT = max(qdte, 1) / 365
+    qp = qtk.option_chain(qexp).puts
+    qrow = qp.iloc[(qp['strike'] - qtgt).abs().argmin()]
+    qK = float(qrow['strike'])
+    qbid = float(qrow.get('bid', 0) or 0)
+    qask = float(qrow.get('ask', 0) or 0)
+    qmid = (qbid + qask) / 2 if (qbid and qask) else float(qrow.get('lastPrice', 0) or 0)
+    qiv = float(qrow.get('impliedVolatility', 0) or 0)
+    print(f'TACTICAL_QQQ [same-day {qdte}DTE, highest gamma/theta - re-buy only on conviction]: '
+          f'{qK:.0f}p exp {qexp} ({qdte}d) @ ${qmid:.2f} (${qmid*100:.0f}/ct) IV {qiv*100:.0f}%')
+    for dp in (0.01, 0.02, 0.03):
+        qval = bsput(qspot * (1 - dp), qK, qT, r, qiv)
+        print(f'   QQQ -{dp*100:.0f}%: put ~${qval:.2f} gain ~${(qval-qmid)*100:,.0f}/ct')
 
 
 if __name__ == '__main__':
